@@ -39,6 +39,7 @@ class GetEc2Info:
 
         return ec2_name
 
+
     def get_ec2_type(self,instanceId):
         #get target instance tags (Alarm tags)
         ec2_name=instanceId
@@ -72,7 +73,6 @@ def get_ssm_parameters(accountId):
     return res[accountId]
 
 def runEventMsg(detail):
-    
     ec2_client=GetEc2Info(detail['userIdentity']['accountId']);
     user=detail['userIdentity']['arn'].split('/')[-1]
     eventName=detail['eventName']
@@ -103,22 +103,16 @@ def runEventMsg(detail):
 
     }
     }
-
         response = client.publish(
         TargetArn="arn:aws:sns:ap-northeast-2:589566835476:SNS_TOPIC_EC2_STATE_EVENT",
         Message=json.dumps({'default': json.dumps(msg)}),
         MessageStructure='json'
         )
-
-    
-    
-    
     return msg;
     
     
 
 def otherEventMsg(detail):
-    
     ec2_client=GetEc2Info(detail['userIdentity']['accountId']);
     user=detail['userIdentity']['arn'].split('/')[-1]
     eventName=detail['eventName']
@@ -146,33 +140,62 @@ def otherEventMsg(detail):
         eventName
     }
     }
-        
         response = client.publish(
         TargetArn="arn:aws:sns:ap-northeast-2:589566835476:SNS_TOPIC_EC2_STATE_EVENT",
         Message=json.dumps({'default': json.dumps(msg)}),
         MessageStructure='json'
         )
-
-    
-    
-    
     return msg;
     
-    
-    
+def spotEventMsg(spot_event,instance_id,time,account):
+    client = boto3.client('sns')
+    ec2_client=GetEc2Info(account);
+    eventName=spot_event
+    msg = {
+    "version": "1.0",
+    "source": "custom",
+    "content": {
+         "description": ":warning: *"+get_ssm_parameters(account)+" Spot Instance 이벤트 발생"+
+        "*\n*Event Time*\n"+
+        time +
+        "\n*EC2 Name*\n"+
+        ec2_client.get_ec2_name(instance_id)+
+        "\n*EC2 ID*\n"+
+        instance_id+        
+        "\n*EC2 Type*\n"+
+        ec2_client.get_ec2_type(instance_id)+
+#        "\n*User name*\n"+
+#        user+        
+        "\n*Event Mesage*\n"+
+        eventName
+    }
+    }
+        
+    response = client.publish(
+        TargetArn="arn:aws:sns:ap-northeast-2:589566835476:SNS_TOPIC_EC2_SPOT_EVENT",
+        Message=json.dumps({'default': json.dumps(msg)}),
+        MessageStructure='json'
+        )
+
 def lambda_handler(event, context):
     detail=event['detail']
-    
-    msg=runEventMsg(detail) if detail['eventName'] == "RunInstances" else otherEventMsg(detail);
-    
-    
-    print(json.dumps(msg));
-    
-    
+    if event['detail-type'] == "EC2 Spot Instance Interruption Warning" or event['detail-type'] == "EC2 Instance Rebalance Recommendation":
+        spotEventMsg(event['detail-type'],detail['instance-id'],event['time'],event['account'])
 
-    # TODO implement
+        return print("SPOT EVENT !")
+
+    elif detail['userIdentity']['accountId'] == '744690697308' and detail['userIdentity']['arn'].split('/')[-1] == 'AutoScaling':
+        return print("NDC's AutoScaling");
+    elif detail['userIdentity']['accountId'] == '111111111111' and detail['userIdentity']['arn'].split('/')[-1] == 'AutoScaling':
+        return print("HOT's AutoScaling");
+    else:
+        msg=runEventMsg(detail) if detail['eventName'] == "RunInstances" else otherEventMsg(detail);
+
+    #msg=runEventMsg(detail) if detail['eventName'] == "RunInstances" else otherEventMsg(detail);
+    #print(json.dumps(msg));
+
     return {
         'statusCode': 200,
-        'body': json.dumps('Hello from Lambda!')
+        'body': json.dumps(msg)
     }
 
