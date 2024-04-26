@@ -104,7 +104,7 @@ def runEventMsg(detail):
     }
     }
         response = client.publish(
-        TargetArn="arn:aws:sns:ap-northeast-2:589566835476:SNS_TOPIC_EC2_STATE_EVENT",
+        TargetArn="arn:aws:sns:ap-northeast-2:<YOUR_ACCOUNT>:SNS_TOPIC_EC2_STATE_EVENT",
         Message=json.dumps({'default': json.dumps(msg)}),
         MessageStructure='json'
         )
@@ -141,7 +141,7 @@ def otherEventMsg(detail):
     }
     }
         response = client.publish(
-        TargetArn="arn:aws:sns:ap-northeast-2:589566835476:SNS_TOPIC_EC2_STATE_EVENT",
+        TargetArn="arn:aws:sns:ap-northeast-2:<YOUR_ACCOUNT>:SNS_TOPIC_EC2_STATE_EVENT",
         Message=json.dumps({'default': json.dumps(msg)}),
         MessageStructure='json'
         )
@@ -172,7 +172,7 @@ def spotEventMsg(spot_event,instance_id,time,account):
     }
         
     response = client.publish(
-        TargetArn="arn:aws:sns:ap-northeast-2:589566835476:SNS_TOPIC_EC2_SPOT_EVENT",
+        TargetArn="arn:aws:sns:ap-northeast-2:<YOUR_ACCOUNT>:SNS_TOPIC_EC2_SPOT_EVENT",
         Message=json.dumps({'default': json.dumps(msg)}),
         MessageStructure='json'
         )
@@ -181,13 +181,9 @@ def lambda_handler(event, context):
     detail=event['detail']
     if event['detail-type'] == "EC2 Spot Instance Interruption Warning" or event['detail-type'] == "EC2 Instance Rebalance Recommendation":
         spotEventMsg(event['detail-type'],detail['instance-id'],event['time'],event['account'])
-
         return print("SPOT EVENT !")
-
-    elif detail['userIdentity']['accountId'] == '744690697308' and detail['userIdentity']['arn'].split('/')[-1] == 'AutoScaling':
-        return print("NDC's AutoScaling");
     elif detail['userIdentity']['accountId'] == '111111111111' and detail['userIdentity']['arn'].split('/')[-1] == 'AutoScaling':
-        return print("HOT's AutoScaling");
+        return print("AutoScaling");
     else:
         msg=runEventMsg(detail) if detail['eventName'] == "RunInstances" else otherEventMsg(detail);
 
